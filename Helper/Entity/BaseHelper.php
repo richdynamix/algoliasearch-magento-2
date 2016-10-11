@@ -210,11 +210,11 @@ abstract class BaseHelper
             if ($attribute = $resource->getAttribute('is_active')) {
                 $connection = $this->queryResource->getConnection();
                 $select = $connection->select()
-                    ->from(['backend' => $attribute->getBackendTable()], ['key' => new \Zend_Db_Expr("CONCAT(backend.store_id, '-', backend.entity_id)"), 'category.path', 'backend.value'])
-                    ->join(['category' => $resource->getTable('catalog_category_entity')], 'backend.entity_id = category.entity_id', [])
+                    ->from(['backend' => $attribute->getBackendTable()], ['key' => new \Zend_Db_Expr("CONCAT(backend.store_id, '-', ".$this->getEntityField().")"), 'category.path', 'backend.value'])
+                    ->join(['category' => $resource->getTable('catalog_category_entity')], $this->getEntityField() . ' = category.entity_id', [])
                     ->where('backend.attribute_id = ?', $attribute->getAttributeId())
                     ->order('backend.store_id')
-                    ->order('backend.entity_id');
+                    ->order($this->getEntityField());
 
                 self::$_activeCategories = $connection->fetchAssoc($select);
             }
@@ -246,8 +246,8 @@ abstract class BaseHelper
                 $connection = $this->queryResource->getConnection();
 
                 $select = $connection->select()
-                    ->from(['backend' => $attribute->getBackendTable()], [new \Zend_Db_Expr("CONCAT(backend.store_id, '-', backend.entity_id)"), 'backend.value'])
-                    ->join(['category' => $categoryModel->getTable('catalog_category_entity')], 'backend.entity_id = category.entity_id', [])
+                    ->from(['backend' => $attribute->getBackendTable()], [new \Zend_Db_Expr("CONCAT(backend.store_id, '-', ".$this->getEntityField().")"), 'backend.value'])
+                    ->join(['category' => $categoryModel->getTable('catalog_category_entity')], $this->getEntityField() . ' = category.entity_id', [])
                     ->where('backend.attribute_id = ?', $attribute->getAttributeId())
                     ->where('category.level > ?', 1);
 
@@ -322,5 +322,23 @@ abstract class BaseHelper
         }
 
         return;
+    }
+
+    /**
+     * Switch entity_id for row_id as table fields on Magento version higher than 2.1
+     *
+     * @return string
+     */
+    protected function getEntityField()
+    {
+        //Updated to use object manager
+        $productMetadata = $this->objectManager->get('Magento\Framework\App\ProductMetadataInterface');
+        $magentoVersion = $productMetadata->getVersion();
+
+        if (version_compare($magentoVersion, '2.1.0') >= 0) {
+            return 'backend.row_id';
+        }
+
+        return 'backend.entity_id';
     }
 }
